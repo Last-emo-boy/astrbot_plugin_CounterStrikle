@@ -1,0 +1,9 @@
+{
+  "max_attempts": {
+    "description": "用户在一局游戏中可猜测的最大次数",
+    "type": "int",
+    "default": 6,
+    "hint": "设置允许的猜测次数。超过就算失败。",
+    "obvious_hint": true
+  }
+}
