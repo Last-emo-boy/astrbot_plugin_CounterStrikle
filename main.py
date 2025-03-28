@@ -12,6 +12,131 @@ from astrbot.api import AstrBotConfig
 
 from astrbot.api import logger
 
+# 你可以把模板写在这里，也可以放到单独文件中再读取
+FEEDBACK_TEMPLATE = r"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>CS Guess</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 8px;
+        }
+        .correct {
+            color: green;
+            font-weight: bold;
+        }
+        .wrong {
+            color: red;
+            font-weight: bold;
+        }
+        .highlight {
+            color: #333;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">CS Guess - Attempt #{{ attempt_used }} / {{ max_attempts }}</div>
+
+    <div class="section">
+        Guessed Player: <span class="highlight">{{ guessed_name }}</span>
+    </div>
+
+    <div class="section">
+        Team: {{ guessed_team }}
+        {% if team_correct %}
+            <span class="correct">(Correct)</span>
+        {% else %}
+            <span class="wrong">(Wrong)</span>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        Nationality: {{ guessed_nationality }}
+        {% if nationality_correct %}
+            <span class="correct">(Correct)</span>
+        {% else %}
+            <span class="wrong">(Wrong)</span>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        Age (as of 2023): {{ guessed_age }}
+        {% if age_compare == 'same' %}
+            <span>(Same)</span>
+        {% elif age_compare == 'higher' %}
+            <span class="wrong">(Higher)</span>
+        {% else %}
+            <span class="wrong">(Lower)</span>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        Major Appearances: {{ guessed_major }}
+        {% if major_compare == 'same' %}
+            <span>(Same)</span>
+        {% elif major_compare == 'higher' %}
+            <span class="wrong">(Higher)</span>
+        {% else %}
+            <span class="wrong">(Lower)</span>
+        {% endif %}
+    </div>
+
+    <div style="margin-top:15px;">
+        Attempts Left: <span class="highlight">{{ attempts_left }}</span>
+    </div>
+    <hr/>
+    <div>If you want to guess again, please use <strong>/csguess guess &lt;NAME&gt;</strong>.</div>
+</body>
+</html>
+"""
+
+WIN_TEMPLATE = r"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>CS Guess</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            text-align: center;
+            margin-top: 80px;
+        }
+        .win-title {
+            font-size: 32px;
+            color: green;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        .player-name {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="win-title">Congratulations!</div>
+    <div>You guessed the correct player:</div>
+    <div class="player-name">{{ target_name }}</div>
+    <div style="margin-top:20px;">Game Over ~</div>
+</body>
+</html>
+"""
+
 @register(
     "astrbot_plugin_CounterStrikle",
     "w33d",                 
@@ -21,20 +146,19 @@ from astrbot.api import logger
 ) 
 
 class CSGuessPlugin(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    # 如果你需从配置文件获取最大猜测次数，可以加第二个参数 config: AstrBotConfig
+    # 并在 init 里: self.max_attempts = config.get("max_attempts", 6)
+    # 这里示例写死 6 次
+    def __init__(self, context: Context):
         super().__init__(context)
-        self.config = config  # 解析后的插件配置对象
-        self.data_dir = os.path.join(os.path.dirname(__file__), "data")
 
-        # 读取 CSV
+        self.data_dir = os.path.join(os.path.dirname(__file__), "data")
         self.players_data = []
         self._load_players_csv()
 
-        # 维护进行中的游戏：user_key -> { "target":..., "attempts":..., "max_attempts":... }
+        # 存放当前进行中的游戏信息
+        # user_key -> { "target":..., "attempts":..., "max_attempts":... }
         self.sessions = {}
-
-        # 可选：如果你想定时清理游戏会话，放置无限累积
-        # asyncio.create_task(self._cleanup_task())
 
     def _load_players_csv(self):
         csv_path = os.path.join(self.data_dir, "players.csv")
@@ -47,23 +171,16 @@ class CSGuessPlugin(Star):
                 reader = csv.DictReader(f)
                 for row in reader:
                     self.players_data.append(row)
-            logger.info(f"[CSGuessPlugin] players.csv loaded: total = {len(self.players_data)} players.")
+            logger.info(f"[CSGuessPlugin] players.csv loaded, total = {len(self.players_data)} players.")
         except Exception as e:
             logger.error(f"[CSGuessPlugin] Failed to load CSV: {e}")
-
-    async def _cleanup_task(self):
-        while True:
-            await asyncio.sleep(3600)
-            self.sessions.clear()
-            logger.info("[CSGuessPlugin] sessions cleared by _cleanup_task.")
 
     def _start_game_for_user(self, user_key: str):
         if not self.players_data:
             return None
-
         target = random.choice(self.players_data)
-        # 从配置中获取最大猜测次数
-        max_attempts = self.config.get("max_attempts", 6)
+        # 如果需要配置化可改成: max_attempts = self.config.get("max_attempts", 6)
+        max_attempts = 6
         self.sessions[user_key] = {
             "target": target,
             "attempts": 0,
@@ -79,7 +196,9 @@ class CSGuessPlugin(Star):
     def csguess_cmd_group(self):
         """
         指令组: /csguess ...
-        包含子指令: start, guess, quit
+          - start
+          - guess <NAME>
+          - quit
         """
         pass
 
@@ -87,7 +206,7 @@ class CSGuessPlugin(Star):
     async def csguess_start(self, event: AstrMessageEvent):
         """
         /csguess start
-        启动一个新的游戏。
+        开始新游戏
         """
         user_key = event.unified_msg_origin
         target = self._start_game_for_user(user_key)
@@ -97,94 +216,85 @@ class CSGuessPlugin(Star):
 
         max_attempts = self.sessions[user_key]["max_attempts"]
         yield event.plain_result(
-            f"新的猜选手游戏已开始！最大猜测次数：{max_attempts}。\n"
-            "请使用 /csguess guess <NAME> 来进行猜测。\n"
-            "若要放弃，请 /csguess quit。"
+            f"新的 CSGuess 游戏已开始，你有 {max_attempts} 次机会！\n"
+            f"请使用 /csguess guess <NAME> 来猜测。\n"
+            f"若要放弃，请 /csguess quit"
         )
 
-
     @csguess_cmd_group.command("guess")
-    async def csguess_guess(self, event: AstrMessageEvent, guessed_name: str = None):
+    async def csguess_guess(self, event: AstrMessageEvent, guessed_name: str):
         """
         /csguess guess <NAME>
-        猜测选手
+        进行猜测
         """
         user_key = event.unified_msg_origin
         session = self.sessions.get(user_key)
         if not session:
-            yield event.plain_result("还没有开始游戏，请先 /csguess start。")
+            yield event.plain_result("你还没有开始游戏，请先 /csguess start。")
             return
 
-        if not guessed_name:
-            yield event.plain_result("请在指令后输入你猜的选手名，例如：/csguess guess S1mple")
-            return
-
-        # 取出目标
-        target_player = session["target"]
         session["attempts"] += 1
         attempts_used = session["attempts"]
         attempts_left = session["max_attempts"] - attempts_used
 
-        # CSV 查找
+        target_player = session["target"]
+
+        # 查找猜测的选手
         guessed_player = None
         for p in self.players_data:
             if p.get("NAME", "").lower() == guessed_name.lower():
                 guessed_player = p
                 break
 
+        # 如果不存在
         if not guessed_player:
-            yield event.plain_result(
-                f"未找到 [{guessed_name}]，检查拼写。\n"
-                f"已猜: {attempts_used}/{session['max_attempts']}，剩 {attempts_left} 次。"
-            )
+            msg = f"未找到 [{guessed_name}]，请检查拼写。\n" \
+                  f"已用 {attempts_used}/{session['max_attempts']}，剩余 {attempts_left} 次。"
+            yield event.plain_result(msg)
             return
 
-        # 是否猜中
+        # 如果名字猜对
         if guessed_player["NAME"].lower() == target_player["NAME"].lower():
-            yield event.plain_result(
-                f"恭喜你猜对了！目标选手：[{target_player['NAME']}] \n游戏结束！"
-            )
+            # 用另一个模板做「恭喜成功」的图片
+            html_win = await self.html_render(WIN_TEMPLATE, {
+                "target_name": target_player["NAME"]
+            })
+            yield event.image_result(html_win)
+
             self._end_game_for_user(user_key)
             return
 
-        # 给出提示
-        chain = []
-        chain.append(Comp.Plain(f"你的猜测：[{guessed_player['NAME']}]\n\n"))
+        # 否则，构建反馈
+        # 1. TEAM
+        guessed_team = guessed_player.get("TEAM", "")
+        target_team = target_player.get("TEAM", "")
+        team_correct = (guessed_team == target_team)
 
-        # TEAM
-        if guessed_player.get("TEAM", "") == target_player.get("TEAM", ""):
-            chain.append(Comp.Plain("TEAM: Correct!\n"))
-        else:
-            chain.append(Comp.Plain("TEAM: Wrong\n"))
+        # 2. NATIONALITY
+        guessed_nat = guessed_player.get("NATIONALITY", "")
+        target_nat = target_player.get("NATIONALITY", "")
+        nationality_correct = (guessed_nat == target_nat)
 
-        # NATIONALITY
-        if guessed_player.get("NATIONALITY", "") == target_player.get("NATIONALITY", ""):
-            chain.append(Comp.Plain("NATIONALITY: Correct!\n"))
-        else:
-            chain.append(Comp.Plain("NATIONALITY: Wrong\n"))
-
-        # AGE: 比较年龄 = 当前年份 - 出生年份
-        now_year = datetime.now().year
-        def calc_age(birth_str: str):
+        # 3. AGE - 以 2025 为准
+        def calc_age_2025(birth_str: str):
             try:
-                parts = birth_str.split("-")
-                birth_year = int(parts[0])
-                return now_year - birth_year
+                birth_year = int(birth_str.split("-")[0])
+                return 2025 - birth_year
             except:
                 return 0
 
-        g_age = calc_age(guessed_player.get("AGE", ""))
-        t_age = calc_age(target_player.get("AGE", ""))
+        g_age = calc_age_2025(guessed_player.get("AGE", ""))
+        t_age = calc_age_2025(target_player.get("AGE", ""))
 
         if g_age == t_age:
-            chain.append(Comp.Plain("AGE: Same\n"))
+            age_compare = "same"
         elif g_age > t_age:
-            chain.append(Comp.Plain("AGE: Higher\n"))
+            age_compare = "higher"
         else:
-            chain.append(Comp.Plain("AGE: Lower\n"))
+            age_compare = "lower"
 
-        # MAJOR APPEARANCES
-        def to_int(s: str):
+        # 4. MAJOR APPEARANCES
+        def to_int(s):
             try:
                 return int(s)
             except:
@@ -194,25 +304,41 @@ class CSGuessPlugin(Star):
         t_major = to_int(target_player.get("MAJOR APPEARANCES", "0"))
 
         if g_major == t_major:
-            chain.append(Comp.Plain("MAJOR APPEARANCES: Same\n"))
+            major_compare = "same"
         elif g_major > t_major:
-            chain.append(Comp.Plain("MAJOR APPEARANCES: Higher\n"))
+            major_compare = "higher"
         else:
-            chain.append(Comp.Plain("MAJOR APPEARANCES: Lower\n"))
+            major_compare = "lower"
 
-        chain.append(Comp.Plain(f"\n已用 {attempts_used}/{session['max_attempts']}，剩 {attempts_left} 次。\n"))
+        # 用 Jinja HTML -> 图片
+        html_feedback = await self.html_render(FEEDBACK_TEMPLATE, {
+            "attempt_used": attempts_used,
+            "max_attempts": session["max_attempts"],
+            "attempts_left": attempts_left,
+
+            "guessed_name": guessed_player.get("NAME", ""),
+            "guessed_team": guessed_team,
+            "team_correct": team_correct,
+
+            "guessed_nationality": guessed_nat,
+            "nationality_correct": nationality_correct,
+
+            "guessed_age": g_age,
+            "age_compare": age_compare,
+
+            "guessed_major": g_major,
+            "major_compare": major_compare
+        })
+
+        yield event.image_result(html_feedback)
 
         # 判断是否用完
         if attempts_left <= 0:
-            chain.append(Comp.Plain(
-                f"很遗憾，你用完所有机会！目标是 [{target_player['NAME']}]."
-            ))
-            yield event.chain_result(chain)
+            # 用完则 Reveal 答案 + 结束
+            yield event.plain_result(
+                f"很遗憾，你用完所有次数！正确答案是 [{target_player['NAME']}]."
+            )
             self._end_game_for_user(user_key)
-            return
-
-        chain.append(Comp.Plain("继续加油，可再次 /csguess guess <NAME>！\n"))
-        yield event.chain_result(chain)
 
     @csguess_cmd_group.command("quit")
     async def csguess_quit(self, event: AstrMessageEvent):
@@ -221,16 +347,15 @@ class CSGuessPlugin(Star):
         放弃游戏
         """
         user_key = event.unified_msg_origin
-        session = self.sessions.get(user_key)
-        if session:
+        if user_key in self.sessions:
             self._end_game_for_user(user_key)
-            yield event.plain_result("你已放弃本局游戏，可随时 /csguess start 再来~")
+            yield event.plain_result("你已放弃本局游戏。下次可用 /csguess start 再来~")
         else:
             yield event.plain_result("你当前没有进行中的游戏。")
 
     async def terminate(self):
         """
-        插件被卸载/停用时的清理逻辑
+        插件卸载/停用时清理
         """
         logger.info("[CSGuessPlugin] Terminate called.")
         self.sessions.clear()
