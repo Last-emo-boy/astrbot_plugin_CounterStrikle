@@ -10,6 +10,8 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import AstrBotConfig
 
+from astrbot.api import logger
+
 @register(
     "astrbot_plugin_CounterStrikle",
     "w33d",                 
