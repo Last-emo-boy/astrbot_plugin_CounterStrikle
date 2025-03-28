@@ -47,7 +47,7 @@ class CSGuessPlugin(Star):
         """
         csv_path = os.path.join(self.data_dir, "players.csv")
         if not os.path.exists(csv_path):
-            self.context.logger.warning(f"[CSGuessPlugin] players.csv not found: {csv_path}")
+            logger.warning(f"[CSGuessPlugin] players.csv not found: {csv_path}")
             return
         
         try:
@@ -55,9 +55,9 @@ class CSGuessPlugin(Star):
                 reader = csv.DictReader(f)
                 for row in reader:
                     self.players_data.append(row)
-            self.context.logger.info(f"[CSGuessPlugin] players.csv loaded: total = {len(self.players_data)} players.")
+            logger.info(f"[CSGuessPlugin] players.csv loaded: total = {len(self.players_data)} players.")
         except Exception as e:
-            self.context.logger.error(f"[CSGuessPlugin] Failed to load CSV: {e}")
+            logger.error(f"[CSGuessPlugin] Failed to load CSV: {e}")
 
     async def _cleanup_task(self):
         """
@@ -66,7 +66,7 @@ class CSGuessPlugin(Star):
         while True:
             await asyncio.sleep(3600)
             self.sessions.clear()
-            self.context.logger.info("[CSGuessPlugin] sessions cleared by _cleanup_task.")
+            logger.info("[CSGuessPlugin] sessions cleared by _cleanup_task.")
 
     def _start_game_for_user(self, user_key: str):
         """
@@ -262,5 +262,5 @@ class CSGuessPlugin(Star):
         """
         当插件被卸载/停用时的清理逻辑
         """
-        self.context.logger.info("[CSGuessPlugin] Terminate called.")
+        logger.info("[CSGuessPlugin] Terminate called.")
         self.sessions.clear()
