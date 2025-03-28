@@ -1,9 +1,43 @@
-# helloworld
+# AstrBot Plugin: CounterStrikle
 
-AstrBot 插件模板
+这是一个基于 [AstrBot](https://github.com/Soulter/AstrBot) 的小游戏插件，让用户来猜测一位 CS 选手。插件会从内置的 CSV 数据表中随机选择一位选手，玩家可多次进行猜测，并根据提示信息一步步接近正确答案。灵感来源于BlastTV的同款小游戏
 
-A template plugin for AstrBot plugin feature
+## 功能特性
 
-# 支持
+1. **随机选手**：从 `players.csv` 中随机抽取目标选手。  
+2. **猜测流程**：支持多次猜测，每猜一次后，系统会返回图片形式的反馈提示，包括：  
+   - **队伍 (Team)**：猜对或猜错；  
+   - **国籍 (Nationality)**：猜对或猜错；  
+   - **年龄 (Age)**：与目标相比是更大/更小/一样；  
+   - **Major 参赛次数**：比目标更多/更少/相同。  
 
-[帮助文档](https://astrbot.app)
+## 使用示例
+
+- **开始**  
+  ```
+  /csguess start
+  ```
+  AstrBot 将提示「新的 CSGuess 游戏已开始，你有 6 次机会」等内容。
+
+- **猜测**  
+  ```
+  /csguess guess S1mple
+  ```
+  AstrBot 返回一张图片，告诉你：队伍、国籍是否正确，猜测年龄是否更大/更小/相同，Major 参赛次数等。  
+
+- **猜对**：  
+  当你猜对选手名时，会返回一个大字「恭喜你猜对了」的图片并结束游戏。  
+
+- **放弃**  
+  ```
+  /csguess quit
+  ```
+  结束当前游戏，可以随时 `/csguess start` 再开一局。
+
+## 自定义
+
+- 如需修改最大猜测次数、是否中文 UI、渲染模板等，可直接在 `main.py` 里修改相应的常量，或通过 `_conf_schema.json` 配合 AstrBot 提供的动态配置功能（`AstrBotConfig`）进行更灵活的定制。  
+- `players.csv` 中可以添加或删除选手信息，格式需与示例一致（含表头行）。
+
+## TODOs
+- 数据源目前截止至 **2023 年 5 月**，后续可能会进行更新，以便涵盖更多选手和最新战绩。敬请期待。
