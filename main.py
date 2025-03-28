@@ -12,26 +12,47 @@ from astrbot.api import AstrBotConfig
 
 from astrbot.api import logger
 
-# 你可以把模板写在这里，也可以放到单独文件中再读取
 FEEDBACK_TEMPLATE = r"""
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8"/>
-    <title>CS Guess</title>
+    <title>CS 猜谜</title>
     <style>
-        body {
-            font-family: "Microsoft YaHei", sans-serif;
-            margin: 20px;
+        html, body {
+            margin: 0;
             padding: 0;
+            width: 1280px;
+            height: 720px;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            /* 可以加一个渐变背景 */
+            background: linear-gradient(135deg, #f0f0f0, #e2e2e2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background-color: #fff;
+            width: 80%;
+            max-width: 900px;
+            min-height: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 30px;
+            box-sizing: border-box;
         }
         .title {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            text-align: center;
         }
         .section {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            font-size: 18px;
+            line-height: 1.4;
         }
         .correct {
             color: green;
@@ -45,97 +66,85 @@ FEEDBACK_TEMPLATE = r"""
             color: #333;
             font-weight: bold;
         }
-    </style>
-</head>
-<body>
-    <div class="title">CS Guess - Attempt #{{ attempt_used }} / {{ max_attempts }}</div>
-
-    <div class="section">
-        Guessed Player: <span class="highlight">{{ guessed_name }}</span>
-    </div>
-
-    <div class="section">
-        Team: {{ guessed_team }}
-        {% if team_correct %}
-            <span class="correct">(Correct)</span>
-        {% else %}
-            <span class="wrong">(Wrong)</span>
-        {% endif %}
-    </div>
-
-    <div class="section">
-        Nationality: {{ guessed_nationality }}
-        {% if nationality_correct %}
-            <span class="correct">(Correct)</span>
-        {% else %}
-            <span class="wrong">(Wrong)</span>
-        {% endif %}
-    </div>
-
-    <div class="section">
-        Age (as of 2023): {{ guessed_age }}
-        {% if age_compare == 'same' %}
-            <span>(Same)</span>
-        {% elif age_compare == 'higher' %}
-            <span class="wrong">(Higher)</span>
-        {% else %}
-            <span class="wrong">(Lower)</span>
-        {% endif %}
-    </div>
-
-    <div class="section">
-        Major Appearances: {{ guessed_major }}
-        {% if major_compare == 'same' %}
-            <span>(Same)</span>
-        {% elif major_compare == 'higher' %}
-            <span class="wrong">(Higher)</span>
-        {% else %}
-            <span class="wrong">(Lower)</span>
-        {% endif %}
-    </div>
-
-    <div style="margin-top:15px;">
-        Attempts Left: <span class="highlight">{{ attempts_left }}</span>
-    </div>
-    <hr/>
-    <div>If you want to guess again, please use <strong>/csguess guess &lt;NAME&gt;</strong>.</div>
-</body>
-</html>
-"""
-
-WIN_TEMPLATE = r"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8"/>
-    <title>CS Guess</title>
-    <style>
-        body {
-            font-family: "Microsoft YaHei", sans-serif;
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid #ccc;
+        }
+        .footer {
+            margin-top: 15px;
+            font-size: 16px;
             text-align: center;
-            margin-top: 80px;
-        }
-        .win-title {
-            font-size: 32px;
-            color: green;
-            font-weight: bold;
-            margin-bottom: 30px;
-        }
-        .player-name {
-            font-size: 24px;
-            color: #333;
-            margin-bottom: 20px;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <div class="win-title">Congratulations!</div>
-    <div>You guessed the correct player:</div>
-    <div class="player-name">{{ target_name }}</div>
-    <div style="margin-top:20px;">Game Over ~</div>
+    <div class="container">
+
+        <div class="title">CS 猜谜 - 第 {{ attempt_used }} / {{ max_attempts }} 次尝试</div>
+
+        <div class="section">
+            <strong>本次猜测选手：</strong>
+            <span class="highlight">{{ guessed_name }}</span>
+        </div>
+
+        <div class="section">
+            <strong>所属队伍：</strong> {{ guessed_team }}
+            {% if team_correct %}
+                <span class="correct">（正确）</span>
+            {% else %}
+                <span class="wrong">（错误）</span>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <strong>国籍：</strong> {{ guessed_nationality }}
+            {% if nationality_correct %}
+                <span class="correct">（正确）</span>
+            {% else %}
+                <span class="wrong">（错误）</span>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <strong>截至 2025 年的年龄：</strong> {{ guessed_age }}
+            {% if age_compare == 'same' %}
+                <span>（相同）</span>
+            {% elif age_compare == 'higher' %}
+                <span class="wrong">（更大）</span>
+            {% else %}
+                <span class="wrong">（更小）</span>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <strong>Major 参赛次数：</strong> {{ guessed_major }}
+            {% if major_compare == 'same' %}
+                <span>（相同）</span>
+            {% elif major_compare == 'higher' %}
+                <span class="wrong">（更多）</span>
+            {% else %}
+                <span class="wrong">（更少）</span>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <strong>剩余次数：</strong>
+            <span class="highlight">{{ attempts_left }}</span>
+        </div>
+
+        <hr/>
+
+        <div class="footer">
+            如果想继续猜测，请输入命令：<strong>/csguess guess &lt;选手名&gt;</strong> 
+        </div>
+
+    </div>
 </body>
 </html>
 """
+
 
 @register(
     "astrbot_plugin_CounterStrikle",
