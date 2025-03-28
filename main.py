@@ -84,7 +84,7 @@ class CSGuessPlugin(Star):
         pass
 
     @csguess_cmd_group.command("start")
-    async def csguess_start(self, event: AstrMessageEvent, *args):
+    async def csguess_start(self, event: AstrMessageEvent):
         """
         /csguess start
         启动一个新的游戏。
@@ -104,7 +104,7 @@ class CSGuessPlugin(Star):
 
 
     @csguess_cmd_group.command("guess")
-    async def csguess_guess(self, event: AstrMessageEvent, guessed_name: str = None, *args):
+    async def csguess_guess(self, event: AstrMessageEvent, guessed_name: str = None):
         """
         /csguess guess <NAME>
         猜测选手
@@ -215,7 +215,7 @@ class CSGuessPlugin(Star):
         yield event.chain_result(chain)
 
     @csguess_cmd_group.command("quit")
-    async def csguess_quit(self, event: AstrMessageEvent, *args):
+    async def csguess_quit(self, event: AstrMessageEvent):
         """
         /csguess quit
         放弃游戏
