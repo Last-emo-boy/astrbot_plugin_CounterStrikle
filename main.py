@@ -87,19 +87,21 @@ class CSGuessPlugin(Star):
     async def csguess_start(self, event: AstrMessageEvent, *args):
         """
         /csguess start
-        开启游戏
+        启动一个新的游戏。
         """
         user_key = event.unified_msg_origin
         target = self._start_game_for_user(user_key)
         if target is None:
-            yield event.plain_result("数据为空，无法开始游戏。")
+            yield event.plain_result("选手数据为空，无法开始游戏。")
             return
 
         max_attempts = self.sessions[user_key]["max_attempts"]
         yield event.plain_result(
-            f"游戏开始！请使用 /csguess guess <NAME> 来猜。\n"
-            f"你有 {max_attempts} 次机会。放弃可用 /csguess quit"
+            f"新的猜选手游戏已开始！最大猜测次数：{max_attempts}。\n"
+            "请使用 /csguess guess <NAME> 来进行猜测。\n"
+            "若要放弃，请 /csguess quit。"
         )
+
 
     @csguess_cmd_group.command("guess")
     async def csguess_guess(self, event: AstrMessageEvent, guessed_name: str = None, *args):
